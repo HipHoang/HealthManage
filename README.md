@@ -10,3 +10,6 @@ pip freeze > requirements.txt để xuất requirements các lệnh pip install
 pip install cloudinary để cài thư viện
 python manage.py makemigrations managements để tạo các migration cho sự thay đổi
 python manage.py migrate để tác động đến database
+pip install Pillow cài thư viện xủ lý ảnh
+python manage.py createsuperuser để tạo super user
+pip install django-ckeditor để cài 
