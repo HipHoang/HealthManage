@@ -13,3 +13,4 @@ python manage.py migrate để tác động đến database
 pip install Pillow cài thư viện xủ lý ảnh
 python manage.py createsuperuser để tạo super user
 pip install django-ckeditor để cài 
+pip install djangorestframework
