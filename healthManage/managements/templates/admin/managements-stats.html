@@ -1,0 +1,102 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+    <h1>THỐNG KÊ THÔNG TIN CÁC HOẠT ĐỘNG</h1>
+    <h2>Số lượng các hoạt động: {{ activity_count }}</h2>
+    <ul>
+        {% for c in stats %}
+            <li><strong>{{ c.name }}</strong> có {{ c.activity_count }}</li>
+        {% endfor %}
+        {% for c in stat %}
+            <li><strong>{{ c.user }}</strong> có {{ c.re_count }} và {{ c.water_intake }}</li>
+        {% endfor %}
+    </ul>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <div style="width: 50%">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script>
+        let data = [];
+        let labels = [];
+
+        {% for s in stats %}
+            data.push({{ s.activity_count }});
+            labels.push('{{ s.name }}')
+        {% endfor %}
+        window.onload = function () {
+            const ctx = document.getElementById('myChart');
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '# of Votes',
+                        data: data,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+
+    <div style="width: 50%">
+        <canvas id="Chart_one"></canvas>
+    </div>
+
+    <script>
+        let dat = [];
+        let labe = [];
+
+        {% for s in stat %}
+            dat.push({{ s.re_count }});
+            labe.push('{{ s.name }}')
+        {% endfor %}
+        window.onload = function () {
+            const ctxx = document.getElementById('Chart_one');
+
+            new Chart(ctxx, {
+                    type: 'line',
+                    data: {
+                        labels: labe,
+                        datasets: [{
+                            label: 'My First Dataset',
+                            data: dat,
+                            fill: false,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+  }]
+                    },
+            });
+        }
+    </script>
+    <h2>Thống kê Mục tiêu Người dùng</h2>
+    <ul>
+        {% for goal in goal_stats %}
+            <li><strong>{{ goal.goal_type }}</strong>: {{ goal.goal_count }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Thống kê Nhật ký Sức khỏe</h2>
+    <ul>
+        {% for diary in diary_stats %}
+            <li><strong>{{ diary.user__username }}</strong>: {{ diary.diary_count }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Thống kê Hoạt động</h2>
+    <ul>
+        {% for activity in activity_stats %}
+            <li><strong>{{ activity.name }}</strong>: {{ activity.activity_count }} hoạt động</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
