@@ -1,19 +1,12 @@
-from .models import *
 from rest_framework import viewsets, generics, status
 from .serializers import *
-from managements import serializers, paginators
-import json
-from cloudinary.uploader import upload
-from django.db.models import Q
-from django.shortcuts import render
-from rest_framework.decorators import action, permission_classes
+from managements import paginators
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
 from .paginators import Pagination
 from .perms import *
 from rest_framework.parsers import MultiPartParser, JSONParser
-from rest_framework.request import Request
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -23,7 +16,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     parser_classes = [JSONParser, MultiPartParser, ]
 
     def get_permissions(self):
-        if self.action in ["change_password", "get_current_user"]:
+        if self.action in ["change_password", "get_current_user", "destroy"]:
             return [OwnerPermission()]
         return [IsAuthenticated()]
 
@@ -55,43 +48,8 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         if serializer.is_valid():
             user.set_password(serializer.validated_data['new_password'])
             user.save(update_fields=['password'])
-
-            if hasattr(user, 'teacher') and user.teacher.must_change_password:
-                teacher = user.teacher
-                teacher.must_change_password = False
-                teacher.password_reset_time = None
-                teacher.save(update_fields=['must_change_password', 'password_reset_time'])
-
             return Response({"message": "Mật khẩu đã được thay đổi thành công."}, status=status.HTTP_200_OK)
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class ExerciserViewSet(viewsets.ViewSet, generics.CreateAPIView):
-    queryset = Exerciser.objects.select_related('user')
-    serializer_class = ExerciserSerializer
-    pagination_class = Pagination
-    parser_classes = [JSONParser, MultiPartParser, ]
-
-    def get_queryset(self):
-        query = self.queryset
-        q = self.request.query_params.get("search")
-        if q:
-            query = query.filter(Q(user__first_name__icontains=q) | Q(user__last_name__icontains=q))
-        return query
-
-class CoachViewSet(viewsets.ViewSet, generics.CreateAPIView):
-    queryset = Coach.objects.select_related('user')
-    serializer_class = CoachSerializer
-    pagination_class = Pagination
-    parser_classes = [JSONParser, MultiPartParser, ]
-
-    def get_queryset(self):
-        query = self.queryset
-        q = self.request.query_params.get("search")
-        if q:
-            query = query.filter(Q(user__first_name__icontains=q) | Q(user__last_name__icontains=q))
-        return query
 
 class ActivityViewSet(viewsets.ModelViewSet):
     queryset = Activity.objects.all()

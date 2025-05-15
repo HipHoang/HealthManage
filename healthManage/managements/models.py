@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from ckeditor.fields import RichTextField
@@ -25,6 +27,7 @@ class Role(IntEnum):
 class User(AbstractUser):
     avatar = CloudinaryField('avatar', null=True, blank=True, folder='avatar' ,default='')
     email = models.EmailField(unique=True, null=False, max_length=255)
+    birthday = models.DateField(null=True, blank=True)
     role = models.IntegerField(
         choices=Role.choices(),
         default=Role.Admin.value
@@ -32,26 +35,6 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-class Exerciser(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return str(self.user)
-
-    def delete(self, *args, **kwargs):
-        self.user.delete()
-        super().delete(*args, **kwargs)
-
-class Coach(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return str(self.user)
-
-    def delete(self, *args, **kwargs):
-        self.user.delete()
-        super().delete(*args, **kwargs)
 
 class Activity(BaseModel):
     name = models.CharField(max_length=255)
@@ -84,22 +67,33 @@ class MealPlan(BaseModel):
     def __str__(self):
         return self.name
 
+class CoachProfile(BaseModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    bio = RichTextField(null=True, blank=True, help_text="Giới thiệu bản thân")
+    specialties = models.CharField(max_length=255, help_text="Ví dụ: Gym, Yoga, Cardio...")
+    years_of_experience = models.PositiveIntegerField(default=0)
+    certifications = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
+
 class HealthRecord(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    bmi = models.FloatField(null=True, blank=True)
+    date = models.DateField(default=timezone.now)
     water_intake = models.FloatField(null=True, blank=True)
     steps = models.IntegerField(null=True, blank=True)
     heart_rate = models.IntegerField(null=True, blank=True)
     height = models.FloatField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
     sleep_time = models.FloatField(null=True, blank=True)
-    birthday = models.DateField(null=True, blank=True)
+    bmi = models.FloatField(editable=False, blank=True, null=True)
 
-    def bmi_calculation(self):
-        """Tính chỉ số BMI."""
-        if self.height and self.weight:
-            return self.weight / (self.height ** 2)
-        return None
+    def save(self, *args, **kwargs):
+        try:
+            self.bmi = round(self.weight / ((self.height / 100) ** 2), 2)
+        except (TypeError, ZeroDivisionError):
+            self.bmi = None
+        super().save(*args, **kwargs)
 
 class HealthDiary(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

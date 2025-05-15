@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from rest_framework.serializers import *
 from managements.models import *
-from cloudinary.uploader import upload
-from cloudinary.exceptions import Error
 
 
 class UserSerializer(ModelSerializer):
@@ -17,7 +15,7 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "password", "avatar", "first_name", "last_name", "email", "role"]
+        fields = ["id", "username", "password", "avatar", "first_name", "last_name", "email", "role", 'birthday']
         extra_kwargs = {
             'password': {
                 'write_only': True,
@@ -34,82 +32,6 @@ class ChangePasswordSerializer(ModelSerializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Mật khẩu hiện tại không đúng.")
         return value
-
-class ExerciserSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-
-    class Meta:
-        model = Exerciser
-        fields = ['id', 'user']
-
-    def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        user_data['role'] = 1
-        user_data['is_active'] = False
-        avatar = user_data.pop('avatar', None)
-        password = user_data.get('password')
-
-        if not password:
-            raise ValidationError({"password": "Yêu cầu mật khẩu."})
-
-        if avatar:
-            try:
-                avatar_result = upload(avatar, folder="avatar")
-                user_data['avatar'] = avatar_result.get('secure_url')
-            except Error as e:
-                raise ValidationError({"avatar": f"Lỗi đăng tải avatar: {str(e)}"})
-
-        user = User.objects.create_user(
-            username=user_data.get('username'),
-            password=password,
-            first_name=user_data.get('first_name'),
-            last_name=user_data.get('last_name'),
-            email=user_data.get('email'),
-            avatar=user_data.get('avatar'),
-            role=user_data.get('role'),
-            is_active=user_data.get('is_active')
-        )
-
-        exerciser = Exerciser.objects.create(user=user, **validated_data)
-        return exerciser
-
-class CoachSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-
-    class Meta:
-        model = Coach
-        fields = ['id', 'user']
-
-    def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        user_data['role'] = 2
-        user_data['is_active'] = False
-        avatar = user_data.pop('avatar', None)
-        password = user_data.get('password')
-
-        if not password:
-            raise ValidationError({"password": "Yêu cầu mật khẩu."})
-
-        if avatar:
-            try:
-                avatar_result = upload(avatar, folder="avatar")
-                user_data['avatar'] = avatar_result.get('secure_url')
-            except Error as e:
-                raise ValidationError({"avatar": f"Lỗi đăng tải avatar: {str(e)}"})
-
-        user = User.objects.create_user(
-            username=user_data.get('username'),
-            password=password,
-            first_name=user_data.get('first_name'),
-            last_name=user_data.get('last_name'),
-            email=user_data.get('email'),
-            avatar=user_data.get('avatar'),
-            role=user_data.get('role'),
-            is_active=user_data.get('is_active')
-        )
-
-        coach = Coach.objects.create(user=user, **validated_data)
-        return coach
 
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -129,12 +51,18 @@ class MealPlanSerializer(serializers.ModelSerializer):
         model = MealPlan
         fields = ['id', 'user', 'name', 'date', 'description', 'calories_intake']
 
+class CoachProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    class Meta:
+        model = CoachProfile
+        fields = ['id', 'user', 'bio', 'specialties', 'years_of_experience', 'certifications']
+
 class HealthRecordSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     class Meta:
         model = HealthRecord
         fields = ['id', 'user', 'bmi', 'water_intake', 'steps', 'heart_rate',
-                  'height', 'weight', 'sleep_time', 'birthday']
+                  'height', 'weight', 'sleep_time', 'date']
         read_only_fields = ['bmi']
 
 class HealthDiarySerializer(serializers.ModelSerializer):
