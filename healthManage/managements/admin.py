@@ -5,6 +5,7 @@ from django.urls import path
 
 from managements.models import *
 
+from oauth2_provider.models import AccessToken, Application
 
 class MyAdminSite(admin.AdminSite):
     site_header = 'Health Management Administration'
@@ -45,6 +46,6 @@ admin_site.register(HealthDiary)
 admin_site.register(ChatMessage)
 admin_site.register(Tag)
 admin_site.register(UserGoal)
-admin_site.register(ExpertSpecialization)
-admin_site.register(ExpertProfile)
 admin_site.register(UserConnection)
+admin_site.register(Application)
+admin_site.register(AccessToken)

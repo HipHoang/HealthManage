@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-gp4-7mbdqj3+ceq0vazb@us59uypv1z9u@7i4w(y27a4=hwyaj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '10.0.2.2', '192.168.1.8']
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -76,6 +76,12 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'healthManage.urls'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",  # Origin mặc định của Django development server (nếu bạn vẫn muốn local access)
+    "http://127.0.0.1:8000", # Tương tự như trên
+    "http://192.168.1.100:8081",  # Origin của ứng dụng React Native trên máy khác
+]
 
 TEMPLATES = [
     {
@@ -164,3 +170,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+OAUTH2_PROVIDER = {
+    'SCOPES': {'read': 'Read access', 'write': 'Write access'},
+    'GRANT_TYPES': ['password', 'authorization_code', 'refresh_token', 'client_credentials'], # Đảm bảo 'password' ở đây
+    # ... các cấu hình khác
+}
+
+CLIENT_ID = 'FrkcN3tFR2G1it8oGe4d2QNeG0OBNKVfpkb7JIVw'
+CLIENT_SECRET = 'wrLjyk4DJH7nS0NvuoR49REgnMV9E2IvRGpClBdWlV6NnGeQYCQIAToKKHw878jvfUpVU8Pth1rtND28ncupk1p8yZlsexH8zPou0oFQSpgrFk7gYW1WLQPwloBkKSil'

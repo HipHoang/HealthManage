@@ -16,7 +16,7 @@ class BaseModel(models.Model):
 class Role(IntEnum):
     Admin = 0
     Exerciser = 1
-    Expert = 2
+    Coach = 2
 
     @classmethod
     def choices(cls):
@@ -86,7 +86,6 @@ class MealPlan(BaseModel):
 
 class HealthRecord(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    date = models.DateTimeField(auto_now_add=True)
     bmi = models.FloatField(null=True, blank=True)
     water_intake = models.FloatField(null=True, blank=True)
     steps = models.IntegerField(null=True, blank=True)
@@ -94,19 +93,13 @@ class HealthRecord(BaseModel):
     height = models.FloatField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
     sleep_time = models.FloatField(null=True, blank=True)
+    birthday = models.DateField(null=True, blank=True)
 
     def bmi_calculation(self):
         """Tính chỉ số BMI."""
         if self.height and self.weight:
             return self.weight / (self.height ** 2)
         return None
-
-    def __str__(self):
-        return f"{self.user.username} - {self.date}"
-
-    class Meta:
-        unique_together = ('user', 'date')
-
 
 class HealthDiary(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -119,7 +112,6 @@ class HealthDiary(BaseModel):
 
     class Meta:
         unique_together = ('user', 'date')
-
 
 class ChatMessage(BaseModel):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -158,33 +150,9 @@ class UserGoal(BaseModel):
     def __str__(self):
         return f"Mục tiêu của {self.user.username} - {self.goal_type}"
 
-class ExpertSpecialization(BaseModel):
-    name = models.CharField(max_length=255, unique=True)
-    description = models.TextField(null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        unique_together = ('name',)
-
-class ExpertProfile(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="expert_profile")
-    specializations = models.ManyToManyField(ExpertSpecialization, related_name="experts")
-    bio = RichTextField(null=True, blank=True)
-    experience_years = models.IntegerField(null=True, blank=True)
-    consultation_fee = models.FloatField(null=True, blank=True)
-
-    def __str__(self):
-        return self.user.username
-
-    class Meta:
-        unique_together = ('user',)
-
-
 class UserConnection(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_connections")
-    expert = models.ForeignKey(User, on_delete=models.CASCADE, related_name="expert_connections")
+    coach = models.ForeignKey(User, on_delete=models.CASCADE, related_name="coach_connections")
     status = models.CharField(max_length=50, choices=(
         ('pending', 'Đang chờ'),
         ('accepted', 'Đã chấp nhận'),
@@ -193,7 +161,7 @@ class UserConnection(BaseModel):
     ), default='pending')
 
     def __str__(self):
-        return f"Kết nối giữa {self.user.username} và {self.expert.username} - {self.status}"
+        return f"Kết nối giữa {self.user.username} và {self.coach.username} - {self.status}"
 
     class Meta:
-        unique_together = ('user', 'expert')
+        unique_together = ('user', 'coach')
