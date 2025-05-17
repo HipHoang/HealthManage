@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.contrib.auth.hashers import make_password
 from django.db.models import Count
 from django.template.response import TemplateResponse
 from django.urls import path
@@ -41,15 +40,6 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ("username", "email")
     ordering = ("id",)
 
-    def save_model(self, request, obj, form, change):
-        """
-        Ghi đè phương thức save_model để tự động băm mật khẩu trước khi lưu.
-        """
-        if obj.password:  # Kiểm tra xem mật khẩu có được cung cấp không
-            obj.password = make_password(obj.password)  # Băm mật khẩu
-        obj.save()  # Lưu đối tượng User
-
-
 class ActivityAdmin(admin.ModelAdmin):
     list_display = ("name", "calories_burned", "active")
     search_fields = ("name", "description")
@@ -68,15 +58,26 @@ class MealPlanAdmin(admin.ModelAdmin):
     list_filter = ("date", "user")
 
 class HealthRecordAdmin(admin.ModelAdmin):
-    list_display = ('user', 'bmi', 'water_intake', 'steps', 'heart_rate')
-    search_fields = ('user__username',)  # Tìm kiếm theo tên người dùng
-    list_filter = ('user',)
-    readonly_fields = ('bmi',)
+    list_display = ("user", "bmi", "water_intake", "steps", "heart_rate")
+    search_fields = ("user__username",)  # Tìm kiếm theo tên người dùng
+    list_filter = ("user",)
+    readonly_fields = ("bmi",)
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name == "user":
             kwargs["queryset"] = User.objects.filter(role=1)
         return super().formfield_for_dbfield(db_field, **kwargs)
+
+class CoachProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "bio", "specialties", "years_of_experience", "certifications",)
+    search_fields = ("user__username",)
+    list_filter = ("user",)
+
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        if db_field.name == "user":
+            kwargs["queryset"] = User.objects.filter(role=2)
+        return super().formfield_for_dbfield(db_field, **kwargs)
+
 
 class HealthDiaryAdmin(admin.ModelAdmin):
     list_display = ("user", "date", "feeling")
@@ -112,6 +113,7 @@ admin_site = MyAdminSite(name='admin')
 
 admin_site.register(User, UserAdmin)
 admin_site.register(HealthRecord, HealthRecordAdmin)
+admin_site.register(CoachProfile, CoachProfileAdmin)
 admin_site.register(Activity, ActivityAdmin)
 admin_site.register(WorkoutPlan, WorkoutPlanAdmin)
 admin_site.register(HealthDiary, HealthDiaryAdmin)

@@ -4,18 +4,26 @@ from managements.models import *
 
 
 class UserSerializer(ModelSerializer):
+    confirm_password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, attrs):
+        if attrs.get('password') != attrs.get('confirm_password'):
+            raise serializers.ValidationError({"password": "Mật khẩu xác nhận không khớp."})
+        return attrs
 
     def create(self, validated_data):
-        data = validated_data.copy()
-        u = User(**data)
-        u.role = 0
-        u.set_password(u.password)
-        u.save()
-        return u
+        validated_data.pop('confirm_password')  # Xoá confirm_password trước khi lưu
+        user = User(**validated_data)
+        user.role = 0  # mặc định
+        user.set_password(validated_data['password'])  # mã hoá mật khẩu
+        user.save()
+        return user
 
     class Meta:
         model = User
-        fields = ["id", "username", "password", "avatar", "first_name", "last_name", "email", "role", 'birthday']
+        fields = ["id", "username", "password", "confirm_password",
+            "avatar", "first_name", "last_name", "email", "role"
+        ]
         extra_kwargs = {
             'password': {
                 'write_only': True,
@@ -32,6 +40,11 @@ class ChangePasswordSerializer(ModelSerializer):
         if not user.check_password(value):
             raise serializers.ValidationError("Mật khẩu hiện tại không đúng.")
         return value
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError("Mật khẩu mới và mật khẩu xác nhận không khớp.")
+        return attrs
 
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -63,7 +76,7 @@ class HealthRecordSerializer(serializers.ModelSerializer):
         model = HealthRecord
         fields = ['id', 'user', 'bmi', 'water_intake', 'steps', 'heart_rate',
                   'height', 'weight', 'sleep_time', 'date']
-        read_only_fields = ['bmi']
+        read_only_fields = ['bmi', 'date']
 
 class HealthDiarySerializer(serializers.ModelSerializer):
     user = UserSerializer()

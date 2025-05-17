@@ -1,5 +1,5 @@
+from datetime import date
 from django.utils import timezone
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from ckeditor.fields import RichTextField
@@ -27,7 +27,6 @@ class Role(IntEnum):
 class User(AbstractUser):
     avatar = CloudinaryField('avatar', null=True, blank=True, folder='avatar' ,default='')
     email = models.EmailField(unique=True, null=False, max_length=255)
-    birthday = models.DateField(null=True, blank=True)
     role = models.IntegerField(
         choices=Role.choices(),
         default=Role.Admin.value
@@ -40,6 +39,7 @@ class Activity(BaseModel):
     name = models.CharField(max_length=255)
     description = RichTextField(null=True, blank=True)
     calories_burned = models.FloatField(null=True, blank=True)
+    time = models.IntegerField(null=True, blank=True)
     image = CloudinaryField('activity_image', null=True, blank=True)
 
     def __str__(self):
