@@ -1,10 +1,10 @@
 from rest_framework import permissions
 
-class OwnerPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        obj = view.get_object()  # Đối tượng bạn muốn kiểm tra quyền
-        # Kiểm tra nếu request.user là đối tượng của chính người dùng hoặc người dùng khác
-        return super().has_permission(request, view) and obj == request.user
+class OwnerPermission(permissions.IsAuthenticated):
+    def has_object_permission(self, request, view, obj):
+        # Kiểm tra xem người dùng yêu cầu có phải là chủ sở hữu của đối tượng này không
+        return request.user == obj
+
 
 class AdminPermission(permissions.BasePermission):
     def has_permission(self, request, view):

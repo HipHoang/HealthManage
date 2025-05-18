@@ -77,12 +77,6 @@ ROOT_URLCONF = 'healthManage.urls'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",  # Origin mặc định của Django development server (nếu bạn vẫn muốn local access)
-    "http://127.0.0.1:8000", # Tương tự như trên
-    "http://192.168.1.100:8081",  # Origin của ứng dụng React Native trên máy khác
-]
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

@@ -8,14 +8,14 @@ from .paginators import Pagination
 from .perms import *
 from rest_framework.parsers import MultiPartParser, JSONParser
 
-class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveAPIView):
+class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = UserSerializer
     pagination_class = Pagination
     parser_classes = [JSONParser, MultiPartParser, ]
 
     def get_permissions(self):
-        if self.action in ["change_password", "retrieve", "update"]:
+        if self.action in ["change_password", "update", "current_user"]:
             return [OwnerPermission()]
         elif self.action == "create":
             return [AllowAny()]
@@ -44,14 +44,21 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.RetrieveAPI
             return Response({"message": "Mật khẩu đã được thay đổi thành công."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(methods=['patch'], url_path='update-info', detail=True)
+    @action(methods=['patch'], url_path='update-info', detail=False)
     def update_info(self, request):
-        user = self.get_object()
+        user = request.user  # lấy user hiện tại
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], url_path='current', detail=False)
+    def current_user(self, request):
+        user = request.user
+        self.check_object_permissions(request, user)
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ActivityViewSet(viewsets.ModelViewSet):
     queryset = Activity.objects.all()
