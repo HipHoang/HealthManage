@@ -32,6 +32,13 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         serializer = UserSerializer(paginated_queryset, many=True)
         return pagination_class.get_paginated_response(serializer.data)
 
+    @action(methods=['get'], url_path='current', detail=False)
+    def get_current_user(self, request):
+        user = request.user
+        self.check_object_permissions(request, user)
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @action(methods=['patch'], url_path='change-password', detail=False)
     def change_password(self, request):
         user = request.user
@@ -65,20 +72,54 @@ class ActivityViewSet(viewsets.ModelViewSet):
     serializer_class = ActivitySerializer
     parser_classes = [JSONParser, MultiPartParser]
 
+    def get_permissions(self):
+        if self.request.method in ['GET']:
+            return [AllowAny()]
+        # Các action chỉ cho Admin hoặc Coach: tạo, cập nhật, xóa
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), AdminPermission(), CoachPermission()]
+        # Các action còn lại: xem danh sách, xem chi tiết, recent, search, top-calories...
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = self.queryset
+
+        # Lọc theo tên (name) của activity nếu có tham số 'q'
+        q = self.request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(name__icontains=q)
+
+        # Lọc theo thể loại (category_id) nếu có tham số 'category_id'
+        category_id = self.request.query_params.get('category_id')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        # Lọc theo mức calo tiêu thụ (calories_burned) nếu có tham số 'calories_min' và 'calories_max'
+        calories_min = self.request.query_params.get('calories_min')
+        calories_max = self.request.query_params.get('calories_max')
+        if calories_min:
+            queryset = queryset.filter(calories_burned__gte=calories_min)
+        if calories_max:
+            queryset = queryset.filter(calories_burned__lte=calories_max)
+
+        return queryset
+
 class WorkoutPlanViewSet(viewsets.ModelViewSet):
     queryset = WorkoutPlan.objects.all()
     serializer_class = WorkoutPlanSerializer
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ["create_plan", "weekly_summary"]:
+        if self.action in ["create_plan", "user_plans", "weekly_summary"]:
             return [IsAuthenticated()]
+        elif self.action in ["plans_by_user"]:
+            return [IsAuthenticated(), CoachPermission(), AdminPermission()]
         return super().get_permissions()
 
     @action(methods=['post'], url_path='create-plan', detail=False)
     def create_plan(self, request):
         """
-        Tạo kế hoạch tập luyện.
+        Người dùng tạo kế hoạch tập luyện cá nhân.
         """
         user = request.user
         serializer = WorkoutPlanSerializer(data=request.data)
@@ -87,6 +128,49 @@ class WorkoutPlanViewSet(viewsets.ModelViewSet):
             return Response({"message": "Kế hoạch tập luyện đã được tạo."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['get'], url_path='my-plans', detail=False)
+    def user_plans(self, request):
+        """
+        Lấy các kế hoạch tập luyện của người dùng hiện tại.
+        """
+        plans = WorkoutPlan.objects.filter(user=request.user)
+        serializer = WorkoutPlanSerializer(plans, many=True)
+        return Response(serializer.data)
+
+    @action(methods=['get'], url_path='weekly-summary', detail=False)
+    def weekly_summary(self, request):
+        """
+        Thống kê kế hoạch tập luyện trong tuần hiện tại.
+        """
+        user = request.user
+        today = timezone.now().date()
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+
+        weekly_plans = WorkoutPlan.objects.filter(user=user, date__range=(start_of_week, end_of_week))
+        total_time = sum(
+            [plan.sets * plan.reps * plan.activities.count() for plan in weekly_plans if plan.sets and plan.reps])
+
+        serializer = WorkoutPlanSerializer(weekly_plans, many=True)
+        return Response({
+            "total_sessions": len(weekly_plans),
+            "estimated_total_exercise_units": total_time,
+            "plans": serializer.data
+        })
+
+    @action(methods=['get'], url_path='plans-by-user/(?P<user_id>[^/.]+)', detail=False)
+    def plans_by_user(self, request, user_id=None):
+        """
+        Dành cho Coach/Admin: Xem kế hoạch tập luyện của người dùng cụ thể.
+        """
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({"message": "Người dùng không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+
+        plans = WorkoutPlan.objects.filter(user=user)
+        serializer = WorkoutPlanSerializer(plans, many=True)
+        return Response(serializer.data)
 
 class MealPlanViewSet(viewsets.ModelViewSet):
     queryset = MealPlan.objects.all()
@@ -111,38 +195,36 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class HealthRecordViewSet(viewsets.ModelViewSet, generics.RetrieveAPIView):
-    queryset = HealthRecord.objects.all()
     serializer_class = HealthRecordSerializer
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ["add_record", "view_record", "log_daily_stats", "retrieve", "update"]:
+        if self.request.user.is_staff and self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), OwnerPermission()]
+
         return [IsAuthenticated()]
 
-    @action(methods=['post'], url_path='add-record', detail=False)
-    def add_record(self, request):
-        """
-        Thêm hồ sơ sức khỏe.
-        """
-        user = request.user
-        serializer = HealthRecordSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=user)
-            return Response({"message": "Hồ sơ sức khỏe đã được cập nhật."}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return HealthRecord.objects.all()
 
-    @action(methods=['get'], url_path='view-record', detail=False)
-    def view_record(self, request):
-        """
-        Xem hồ sơ sức khỏe của người dùng.
-        """
-        user = request.user
-        record = HealthRecord.objects.filter(user=user).first()
-        if record:
-            serializer = HealthRecordSerializer(record)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response({"message": "Hồ sơ sức khỏe không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+        if self.request.user == user.Coach:  # Coach
+            return HealthRecord.objects.filter(
+                user__in=UserConnection.objects.filter(
+                    coach=self.request.user,
+                    status='accepted'
+                ).values_list('user', flat=True)
+            )
+
+        return HealthRecord.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
 
 class HealthDiaryViewSet(viewsets.ModelViewSet):
     queryset = HealthDiary.objects.all()
@@ -150,9 +232,22 @@ class HealthDiaryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ["create", "my_diary", "update", "partial_update", "destroy"]:
+        if self.request.user.is_staff and self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+
+        if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAuthenticated(), OwnerPermission()]
+
+        # Trường hợp mặc định cho các action còn lại (vd: retrieve của user thường)
         return [IsAuthenticated()]
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return HealthDiary.objects.all()
+        return HealthDiary.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 class ChatMessageViewSet(viewsets.ModelViewSet):
     queryset = ChatMessage.objects.all()

@@ -17,8 +17,9 @@ class BaseModel(models.Model):
 
 class Role(IntEnum):
     Admin = 0
-    Exerciser = 1
-    Coach = 2
+    Exerciser_Self_Help = 1
+    Exerciser_With_Coach = 2
+    Coach = 3
 
     @classmethod
     def choices(cls):
@@ -106,6 +107,7 @@ class HealthDiary(BaseModel):
 
     class Meta:
         unique_together = ('user', 'date')
+        ordering = ['-id']
 
 class ChatMessage(BaseModel):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')

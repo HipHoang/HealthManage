@@ -1,10 +1,17 @@
 from rest_framework import serializers
 from rest_framework.serializers import *
 from managements.models import *
+from django.conf import settings
 
 
 class UserSerializer(ModelSerializer):
     confirm_password = serializers.CharField(write_only=True, required=True)
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, user):
+        if user.avatar and hasattr(user.avatar, 'url'):
+            return user.avatar.url
+        return None
 
     def validate(self, attrs):
         if attrs.get('password') != attrs.get('confirm_password'):
@@ -21,9 +28,7 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "password", "confirm_password",
-            "avatar", "first_name", "last_name", "email", "role"
-        ]
+        fields = ["id", "username", "password", "confirm_password", "avatar", "avatar_url", "first_name", "last_name", "email", "role"]
         extra_kwargs = {
             'password': {
                 'write_only': True,
@@ -79,10 +84,11 @@ class HealthRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ['bmi', 'date']
 
 class HealthDiarySerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)
     class Meta:
         model = HealthDiary
         fields = ['id', 'user', 'date', 'content', 'feeling']
+
 
 class ChatMessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer()
