@@ -1,13 +1,4 @@
 from rest_framework import permissions
-#
-# class OwnerPermission(permissions.IsAuthenticated):
-#     def has_object_permission(self, request, view, obj):
-#         # Kiểm tra xem người dùng yêu cầu có phải là chủ sở hữu của đối tượng này không
-#         return request.user == obj
-
-# class OwnerPermission(permissions.BasePermission):
-#     def has_object_permission(self, request, view, obj):
-#         return obj.user == request.user
 
 class OwnerPermission(permissions.IsAuthenticated):
     def has_object_permission(self, request, view, obj):
@@ -17,6 +8,11 @@ class OwnerPermission(permissions.IsAuthenticated):
         # Nếu object có thuộc tính user
         return hasattr(obj, 'user') and obj.user == request.user
 
+class AdminOrCoachPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role in [0, 3]
 
 class AdminPermission(permissions.BasePermission):
     def has_permission(self, request, view):

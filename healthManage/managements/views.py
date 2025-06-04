@@ -77,7 +77,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         # Các action chỉ cho Admin hoặc Coach: tạo, cập nhật, xóa
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAuthenticated(), AdminPermission(), CoachPermission()]
+            return [IsAuthenticated(), AdminOrCoachPermission()]
         # Các action còn lại: xem danh sách, xem chi tiết, recent, search, top-calories...
         return [IsAuthenticated()]
 
@@ -113,7 +113,7 @@ class WorkoutPlanViewSet(viewsets.ModelViewSet):
         if self.action in ["create_plan", "user_plans", "weekly_summary"]:
             return [IsAuthenticated()]
         elif self.action in ["plans_by_user"]:
-            return [IsAuthenticated(), CoachPermission(), AdminPermission()]
+            return [IsAuthenticated(), AdminOrCoachPermission()]
         return super().get_permissions()
 
     @action(methods=['post'], url_path='create-plan', detail=False)

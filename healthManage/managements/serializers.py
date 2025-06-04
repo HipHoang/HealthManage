@@ -21,7 +21,7 @@ class UserSerializer(ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('confirm_password')  # Xoá confirm_password trước khi lưu
         user = User(**validated_data)
-        user.role = 0  # mặc định
+        user.role = validated_data.get('role', 0) # mặc định
         user.set_password(validated_data['password'])  # mã hoá mật khẩu
         user.save()
         return user
@@ -52,9 +52,16 @@ class ChangePasswordSerializer(ModelSerializer):
         return attrs
 
 class ActivitySerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, obj):
+        if obj.image and hasattr(obj.image, 'url'):
+            return obj.image.url  # Cloudinary đã là full URL
+        return None
+
     class Meta:
         model = Activity
-        fields = ['id', 'name', 'description', 'calories_burned', 'image']
+        fields = ['id', 'name', 'description', 'calories_burned', 'image', 'image_url']
 
 class WorkoutPlanSerializer(serializers.ModelSerializer):
     user = UserSerializer()
