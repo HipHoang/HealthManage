@@ -1,4 +1,3 @@
-from datetime import date
 from django.utils import timezone
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -80,13 +79,12 @@ class CoachProfile(BaseModel):
 
 class HealthRecord(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.now)
+    date = models.DateTimeField(auto_now_add=True)
     water_intake = models.FloatField(null=True, blank=True)
     steps = models.IntegerField(null=True, blank=True)
     heart_rate = models.IntegerField(null=True, blank=True)
     height = models.FloatField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
-    sleep_time = models.FloatField(null=True, blank=True)
     bmi = models.FloatField(editable=False, blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -132,13 +130,7 @@ class Tag(BaseModel):
 
 class UserGoal(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    goal_type = models.CharField(max_length=100, choices=(
-        ('weight_loss', 'Giảm cân'),
-        ('weight_gain', 'Tăng cân'),
-        ('maintain', 'Duy trì'),
-        ('muscle_gain', 'Tăng cơ'),
-        ('other', 'Khác'),
-    ))
+    goal_type = models.TextField(null=True, blank=True)
     target_weight = models.FloatField(null=True, blank=True)
     target_date = models.DateField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)

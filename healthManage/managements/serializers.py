@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from rest_framework.serializers import *
 from managements.models import *
-from django.conf import settings
-
 
 class UserSerializer(ModelSerializer):
     confirm_password = serializers.CharField(write_only=True, required=True)
@@ -20,11 +18,11 @@ class UserSerializer(ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('confirm_password')  # Xoá confirm_password trước khi lưu
-        user = User(**validated_data)
-        user.role = validated_data.get('role', 0) # mặc định
-        user.set_password(validated_data['password'])  # mã hoá mật khẩu
-        user.save()
-        return user
+        u = User(**validated_data)
+        u.role = validated_data.get('role', 0) # mặc định
+        u.set_password(validated_data['password'])  # mã hoá mật khẩu
+        u.save()
+        return u
 
     class Meta:
         model = User
@@ -61,7 +59,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Activity
-        fields = ['id', 'name', 'description', 'calories_burned', 'image', 'image_url']
+        fields = ['id', 'name', 'description', 'calories_burned', 'image_url']
 
 class WorkoutPlanSerializer(serializers.ModelSerializer):
     user = UserSerializer()
@@ -83,12 +81,11 @@ class CoachProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'bio', 'specialties', 'years_of_experience', 'certifications']
 
 class HealthRecordSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    user = UserSerializer(read_only=True)
     class Meta:
         model = HealthRecord
-        fields = ['id', 'user', 'bmi', 'water_intake', 'steps', 'heart_rate',
-                  'height', 'weight', 'sleep_time', 'date']
-        read_only_fields = ['bmi', 'date']
+        fields = ['id', 'user', 'bmi', 'water_intake', 'steps', 'heart_rate', 'height', 'weight', 'date']
+        read_only_fields = ['bmi']
 
 class HealthDiarySerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -114,6 +111,7 @@ class UserGoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserGoal
         fields = ['id', 'user', 'goal_type', 'target_weight', 'target_date', 'description']
+        read_only_fields = ['user']
 
 class UserConnectionSerializer(serializers.ModelSerializer):
     user = UserSerializer()

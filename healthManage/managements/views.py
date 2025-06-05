@@ -15,20 +15,20 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     parser_classes = [JSONParser, MultiPartParser, ]
 
     def get_permissions(self):
-        if self.action in ["change_password", "update", "current_user"]:
-            return [OwnerPermission()]
+        if self.action in ["change_password", "update_info", "get_current_user"]:
+            return [IsAuthenticated(), OwnerPermission()]
         elif self.action == "create":
             return [AllowAny()]
+        elif self.action == "get_all_users":
+            return [AdminPermission()]
         return [IsAuthenticated()]
 
     @action(methods=['get'], url_path='all-users', detail=False)
     def get_all_users(self, request):
         self.check_permissions(request)
-        queryset = User.objects.filter(is_active=True)
-
+        queryset = User.objects.filter(active=True)
         pagination_class = paginators.Pagination()
         paginated_queryset = pagination_class.paginate_queryset(queryset, request, view=self)
-
         serializer = UserSerializer(paginated_queryset, many=True)
         return pagination_class.get_paginated_response(serializer.data)
 
@@ -54,21 +54,16 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     @action(methods=['patch'], url_path='update-info', detail=False)
     def update_info(self, request):
         user = request.user  # lấy user hiện tại
-        serializer = UserSerializer(user, data=request.data, partial=True)
+        data = request.data.copy()  # ← dòng cần thêm
+        serializer = UserSerializer(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(methods=['get'], url_path='current', detail=False)
-    def current_user(self, request):
-        user = request.user
-        self.check_object_permissions(request, user)
-        serializer = UserSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ActivityViewSet(viewsets.ModelViewSet):
-    queryset = Activity.objects.all()
+    queryset = Activity.objects.filter(active=True)
     serializer_class = ActivitySerializer
     parser_classes = [JSONParser, MultiPartParser]
 
@@ -105,16 +100,15 @@ class ActivityViewSet(viewsets.ModelViewSet):
         return queryset
 
 class WorkoutPlanViewSet(viewsets.ModelViewSet):
-    queryset = WorkoutPlan.objects.all()
+    queryset = WorkoutPlan.objects.filter(active=True)
     serializer_class = WorkoutPlanSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
         if self.action in ["create_plan", "user_plans", "weekly_summary"]:
             return [IsAuthenticated()]
         elif self.action in ["plans_by_user"]:
             return [IsAuthenticated(), AdminOrCoachPermission()]
-        return super().get_permissions()
+        return [IsAuthenticated]
 
     @action(methods=['post'], url_path='create-plan', detail=False)
     def create_plan(self, request):
@@ -173,14 +167,13 @@ class WorkoutPlanViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 class MealPlanViewSet(viewsets.ModelViewSet):
-    queryset = MealPlan.objects.all()
+    queryset = MealPlan.objects.filter(active=True)
     serializer_class = MealPlanSerializer
-    permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
         if self.action in ["create_meal_plan", "suggest_meals"]:
             return [IsAuthenticated()]
-        return super().get_permissions()
+        return [IsAuthenticated()]
 
     @action(methods=['post'], url_path='create-meal-plan', detail=False)
     def create_meal_plan(self, request):
@@ -193,6 +186,38 @@ class MealPlanViewSet(viewsets.ModelViewSet):
             serializer.save(user=user)
             return Response({"message": "Thực đơn dinh dưỡng đã được tạo."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# class HealthRecordViewSet(viewsets.ModelViewSet, generics.RetrieveAPIView):
+#     queryset = HealthDiary.objects.filter(active=True)
+#     serializer_class = HealthRecordSerializer
+#
+#     def get_permissions(self):
+#         if self.request.user.is_staff and self.action in ['list', 'retrieve']:
+#             return [IsAuthenticated()]
+#
+#         if self.action in ['create', 'update', 'partial_update', 'destroy']:
+#             return [IsAuthenticated(), OwnerPermission()]
+#
+#         return [IsAuthenticated()]
+#
+#     def get_queryset(self):
+#         if self.request.user.is_staff:
+#             return HealthRecord.objects.filter(active=True)
+#
+#         if self.request.user == user.Coach:
+#             return HealthRecord.objects.filter(
+#                 user__in=UserConnection.objects.filter(
+#                     coach=self.request.user,
+#                     status='accepted'
+#                 ).values_list('user', flat=True)
+#             )
+#         return HealthRecord.objects.filter(user=self.request.user)
+#
+#     def perform_create(self, serializer):
+#         serializer.save(user=self.request.user)
+
+
+
 
 class HealthRecordViewSet(viewsets.ModelViewSet, generics.RetrieveAPIView):
     serializer_class = HealthRecordSerializer
@@ -209,28 +234,19 @@ class HealthRecordViewSet(viewsets.ModelViewSet, generics.RetrieveAPIView):
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return HealthRecord.objects.all()
+            return HealthRecord.objects.filter(active=True)
 
-        if self.request.user == user.Coach:  # Coach
-            return HealthRecord.objects.filter(
-                user__in=UserConnection.objects.filter(
-                    coach=self.request.user,
-                    status='accepted'
-                ).values_list('user', flat=True)
-            )
-
-        return HealthRecord.objects.filter(user=self.request.user)
+        # Người dùng thường chỉ được xem dữ liệu của chính họ
+        return HealthRecord.objects.filter(user=self.request.user, active=True)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
+         serializer.save(user=self.request.user)
 
 
 class HealthDiaryViewSet(viewsets.ModelViewSet):
-    queryset = HealthDiary.objects.all()
+    queryset = HealthDiary.objects.filter(active=True)
     serializer_class = HealthDiarySerializer
     permission_classes = [IsAuthenticated]
-
     def get_permissions(self):
         if self.request.user.is_staff and self.action in ['list', 'retrieve']:
             return [IsAuthenticated()]
@@ -243,21 +259,16 @@ class HealthDiaryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         if self.request.user.is_staff:
-            return HealthDiary.objects.all()
+            return HealthDiary.objects.filter(active=True)
         return HealthDiary.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 class ChatMessageViewSet(viewsets.ModelViewSet):
-    queryset = ChatMessage.objects.all()
+    queryset = ChatMessage.objects.filter(active=True)
     serializer_class = ChatMessageSerializer
     permission_classes = [IsAuthenticated]
-
-    def get_permissions(self):
-        if self.action in ["send_message", "list", "retrieve"]:
-            return [IsAuthenticated()]
-        return super().get_permissions()
 
     @action(methods=['post'], url_path='send-message', detail=False)
     def send_message(self, request):
@@ -279,17 +290,19 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
         return Response({"message": "Tin nhắn đã được gửi."}, status=status.HTTP_201_CREATED)
 
 class TagViewSet(viewsets.ModelViewSet):
-    queryset = Tag.objects.all()
+    queryset = Tag.objects.filter(active=True)
     serializer_class = TagSerializer
     permission_classes = [IsAuthenticated]
 
-
 class UserGoalViewSet(viewsets.ModelViewSet):
-    queryset = UserGoal.objects.all()
+    queryset = UserGoal.objects.filter(active=True)
     serializer_class = UserGoalSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
 class UserConnectionViewSet(viewsets.ModelViewSet):
-    queryset = UserConnection.objects.all()
+    queryset = UserConnection.objects.filter(active=True)
     serializer_class = UserConnectionSerializer
     permission_classes = [IsAuthenticated]
